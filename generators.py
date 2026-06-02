@@ -1,78 +1,42 @@
 """
-Модуль generators содержит функции-генераторы для обработки транзакций.
+Модуль с функциями-генераторами для эффективной обработки больших объемов данных транзакций.
+
+Содержит генераторы для:
+- фильтрации транзакций по валюте
+- получения описаний транзакций
+- генерации номеров банковских карт в заданном диапазоне
 """
 
-from typing import Any, Dict, Generator, Iterator, List
+from typing import Iterator, Dict, Any, List
 
 
-def filter_by_currency(
-    transactions: List[Dict[str, Any]], currency: str
-) -> Iterator[Dict[str, Any]]:
+def filter_by_currency(transactions: List[Dict[str, Any]], currency_code: str) -> Iterator[Dict[str, Any]]:
     """
-    Фильтрует транзакции по валюте.
-
-    Args:
-        transactions: Список словарей с транзакциями
-        currency: Код валюты (например, "USD", "RUB")
-
-    Returns:
-        Итератор, выдающий транзакции с указанной валютой
-
-    Пример:
-        >>> usd_trans = filter_by_currency(transactions, "USD")
-        >>> first_usd = next(usd_trans)
+    Возвращает итератор, который поочередно выдает транзакции с указанной валютой.
     """
     for transaction in transactions:
-        if (
-            transaction.get("operationAmount", {})
-            .get("currency", {})
-            .get("code") == currency
-        ):
-            yield transaction
+        if isinstance(transaction, dict):
+            operation_amount = transaction.get("operationAmount")
+            if isinstance(operation_amount, dict):
+                currency = operation_amount.get("currency")
+                if isinstance(currency, dict) and currency.get("code") == currency_code:
+                    yield transaction
 
 
-def transaction_descriptions(
-    transactions: List[Dict[str, Any]]
-) -> Generator[str, None, None]:
+def transaction_descriptions(transactions: List[Dict[str, Any]]) -> Iterator[str]:
     """
-    Возвращает описание каждой транзакции по очереди.
-
-    Args:
-        transactions: Список словарей с транзакциями
-
-    Returns:
-        Генератор строк с описаниями транзакций
-
-    Пример:
-        >>> descriptions = transaction_descriptions(transactions)
-        >>> print(next(descriptions))
-        "Перевод организации"
+    Принимает список словарей с транзакциями и возвращает описание каждой операции по очереди.
     """
     for transaction in transactions:
-        yield transaction.get("description", "")
+        if isinstance(transaction, dict) and "description" in transaction:
+            yield transaction["description"]
 
 
-def card_number_generator(start: int, stop: int) -> Generator[str, None, None]:
+def card_number_generator(start: int, stop: int) -> Iterator[str]:
     """
-    Генерирует номера карт в диапазоне от start до stop.
-
-    Args:
-        start: Начальное значение (включительно)
-        stop: Конечное значение (включительно)
-
-    Returns:
-        Генератор отформатированных номеров карт
-
-    Пример:
-        >>> for card in card_number_generator(1, 3):
-        ...     print(card)
-        0000 0000 0000 0001
-        0000 0000 0000 0002
-        0000 0000 0000 0003
+    Генерирует номера банковских карт в формате 'XXXX XXXX XXXX XXXX' в заданном диапазоне.
     """
     for number in range(start, stop + 1):
-        card_str = str(number).zfill(16)
-        formatted = " ".join(
-            card_str[i:i+4] for i in range(0, 16, 4)
-        )
-        yield formatted
+        formatted_number = f"{number:016d}"
+        card_number = " ".join(formatted_number[i:i+4] for i in range(0, 16, 4))
+        yield card_number
